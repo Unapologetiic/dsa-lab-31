@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # Сервис: Веб-приложение
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: app-lab
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    networks:
+      - app-network
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Сервис: База данных PostgreSQL
+  db:
+    image: postgres:16
+    container_name: pg-lab
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: visits_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d visits_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+# настройки сетей
+networks:
+  app-network:
+    driver: bridge
+
+# настройки томов
+volumes:
+  postgres_data:
