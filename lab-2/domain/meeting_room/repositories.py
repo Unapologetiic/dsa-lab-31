@@ -1,0 +1,16 @@
+from typing import Protocol
+from uuid import UUID
+
+from domain.meeting_room.booking import Booking
+from domain.meeting_room.room import Room
+
+
+class RoomRepository(Protocol):
+    def get(self, room_id: UUID) -> Room | None: ...
+    def save(self, room: Room) -> None: ...
+
+
+class BookingRepository(Protocol):
+    def get(self, booking_id: UUID) -> Booking | None: ...
+    def save(self, booking: Booking) -> None: ...
+    def find_by_room(self, room_id: UUID) -> list[Booking]: ...

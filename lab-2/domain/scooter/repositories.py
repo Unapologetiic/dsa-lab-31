@@ -1,0 +1,16 @@
+from typing import Protocol
+from uuid import UUID
+
+from domain.scooter.scooter import Scooter
+from domain.scooter.trip import Trip
+
+
+class ScooterRepository(Protocol):
+    def get(self, scooter_id: UUID) -> Scooter | None: ...
+    def save(self, scooter: Scooter) -> None: ...
+
+
+class TripRepository(Protocol):
+    def get(self, trip_id: UUID) -> Trip | None: ...
+    def save(self, trip: Trip) -> None: ...
+    def find_active_by_scooter(self, scooter_id: UUID) -> Trip | None: ...

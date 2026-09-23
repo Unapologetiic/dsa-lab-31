@@ -1,0 +1,16 @@
+from typing import Protocol
+from uuid import UUID
+
+from domain.library.book import Book
+from domain.library.loan import Loan
+
+
+class BookRepository(Protocol):
+    def get(self, book_id: UUID) -> Book | None: ...
+    def save(self, book: Book) -> None: ...
+
+
+class LoanRepository(Protocol):
+    def get(self, loan_id: UUID) -> Loan | None: ...
+    def save(self, loan: Loan) -> None: ...
+    def find_open_loan(self, book_id: UUID, reader_id: UUID) -> Loan | None: ...
