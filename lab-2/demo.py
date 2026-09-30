@@ -4,8 +4,10 @@ from uuid import uuid4
 
 from domain.exceptions import DomainError
 from domain.library.book import Book
+from domain.library.factories import BookFactory
 from domain.library.services import CheckoutService, ReturnService
 from domain.library.value_objects import LoanPeriod, ReaderId
+from domain.scooter.factories import ScooterFactory
 from domain.scooter.scooter import Scooter
 from domain.scooter.services import FinishTripService, StartTripService
 from domain.scooter.value_objects import (
@@ -46,6 +48,17 @@ def demo_library() -> None:
     loan = return_svc.return_book(book_id, reader, returned_at)
     print(f"Штраф: {loan.fine.amount.amount} {loan.fine.amount.currency}")
 
+    # Проверка фабрики: повреждённые данные отклоняются
+    try:
+        BookFactory.restore(
+            id=uuid4(),
+            title="DDD",
+            total_copies=1,
+            available_copies=5,
+        )
+    except DomainError as e:
+        print(f"Фабрика отклонила повреждённые данные: {e}")
+
 
 def demo_scooter() -> None:
     print("\n=== Прокат самокатов ===")
@@ -68,6 +81,15 @@ def demo_scooter() -> None:
     finished = started + timedelta(minutes=12)
     trip = finish.finish(trip.id, finished)
     print(f"Стоимость поездки: {trip.cost.amount} {trip.cost.currency}")
+
+    # Проверка фабрики: повреждённые данные отклоняются
+    try:
+        ScooterFactory.restore(
+            id=uuid4(),
+            battery_percent=150,   # некорректно, максимум 100
+        )
+    except DomainError as e:
+        print(f"Фабрика отклонила повреждённые данные: {e}")
 
 
 if __name__ == "__main__":
