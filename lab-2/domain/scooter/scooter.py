@@ -9,7 +9,7 @@ MIN_BATTERY_TO_RENT = BatteryLevel(20)
 
 @dataclass
 class Scooter:
-    """Агрегат «Самокат». Инвариант: нельзя арендовать при заряде ниже порога."""
+    """Агрегат «Самокат»."""
 
     id: UUID
     battery: BatteryLevel
@@ -21,9 +21,7 @@ class Scooter:
                 f"Нельзя арендовать самокат в статусе {self.status.value}"
             )
         if self.battery.is_below(MIN_BATTERY_TO_RENT):
-            raise DomainInvariantViolation(
-                "Уровень заряда ниже минимального порога"
-            )
+            raise DomainInvariantViolation("Уровень заряда ниже минимального порога")
         self.status = ScooterStatus.RENTED
 
     def finish_rent(self) -> None:

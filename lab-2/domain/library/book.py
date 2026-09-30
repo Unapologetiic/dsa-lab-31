@@ -30,7 +30,5 @@ class Book:
 
     def return_copy(self) -> None:
         if self.available_copies >= self.total_copies:
-            raise DomainInvariantViolation(
-                "Все экземпляры уже в библиотеке"
-            )
+            raise DomainInvariantViolation("Все экземпляры уже в библиотеке")
         self.available_copies += 1

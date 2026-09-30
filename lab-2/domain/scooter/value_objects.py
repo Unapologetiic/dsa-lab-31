@@ -57,5 +57,4 @@ class TripPeriod:
     @property
     def minutes(self) -> int:
         delta = self.finished_at - self.started_at
-        # округление вверх до полной минуты
         return max(1, int(delta.total_seconds() // 60) + (1 if delta.seconds % 60 else 0))

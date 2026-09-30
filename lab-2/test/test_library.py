@@ -16,8 +16,6 @@ from infrastructure.in_memory import (
 )
 
 
-# ---------- Value objects ----------
-
 def test_loan_period_ok():
     p = LoanPeriod(datetime(2026, 9, 1), datetime(2026, 9, 15))
     assert p.issue_date < p.due_date
@@ -37,8 +35,6 @@ def test_reader_id_requires_uuid():
     with pytest.raises(InvalidValueObject):
         ReaderId("not-a-uuid")
 
-
-# ---------- Агрегат Book ----------
 
 def test_book_creation_ok():
     b = Book(id=uuid4(), title="DDD", total_copies=3, available_copies=3)
@@ -67,8 +63,6 @@ def test_book_return_when_full():
     with pytest.raises(DomainInvariantViolation):
         b.return_copy()
 
-
-# ---------- Агрегат Loan ----------
 
 def test_loan_close_twice_fails():
     loan = Loan(
@@ -103,8 +97,6 @@ def test_overdue_requires_fine():
     with pytest.raises(DomainInvariantViolation):
         loan.close(datetime(2026, 9, 20), fine=None)
 
-
-# ---------- Доменный сервис ----------
 
 def test_checkout_service_happy():
     books = InMemoryBookRepository()

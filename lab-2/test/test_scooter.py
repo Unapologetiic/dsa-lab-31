@@ -28,8 +28,6 @@ def make_tariff() -> Tariff:
     )
 
 
-# ---------- Value objects ----------
-
 def test_battery_level_range():
     BatteryLevel(0)
     BatteryLevel(100)
@@ -61,8 +59,6 @@ def test_trip_period_invalid():
     with pytest.raises(InvalidValueObject):
         TripPeriod(datetime(2026, 9, 1, 12, 0), datetime(2026, 9, 1, 11, 0))
 
-
-# ---------- Агрегат Scooter ----------
 
 def test_scooter_start_rent_ok():
     s = Scooter(id=uuid4(), battery=BatteryLevel(80))
@@ -103,8 +99,6 @@ def test_scooter_maintenance_when_rented():
         s.send_to_maintenance()
 
 
-# ---------- Агрегат Trip ----------
-
 def test_trip_finish_before_start_fails():
     t0 = datetime(2026, 9, 1, 12, 0)
     trip = Trip(
@@ -131,8 +125,6 @@ def test_trip_finish_twice_fails():
     with pytest.raises(DomainInvariantViolation):
         trip.finish(t0 + timedelta(minutes=20))
 
-
-# ---------- Доменные сервисы ----------
 
 def test_start_and_finish_trip_full_flow():
     scooters = InMemoryScooterRepository()

@@ -6,8 +6,6 @@ from domain.exceptions import InvalidValueObject
 
 @dataclass(frozen=True)
 class Money:
-    """Денежная сумма. Всегда неотрицательна."""
-
     amount: Decimal
     currency: str = "RUB"
 

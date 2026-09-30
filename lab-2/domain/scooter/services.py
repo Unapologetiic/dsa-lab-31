@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from domain.exceptions import DomainInvariantViolation, EntityNotFound
+from domain.exceptions import EntityNotFound
 from domain.scooter.repositories import ScooterRepository, TripRepository
 from domain.scooter.trip import Trip
 from domain.scooter.value_objects import Tariff

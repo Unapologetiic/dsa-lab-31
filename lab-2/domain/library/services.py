@@ -12,7 +12,7 @@ FINE_PER_DAY = Money(Decimal("50"), "RUB")
 
 
 class CheckoutService:
-    """Выдача книги: затрагивает Book и Loan — вынесено в сервис."""
+    """Выдача книги: затрагивает Book и Loan."""
 
     def __init__(self, books: BookRepository, loans: LoanRepository) -> None:
         self._books = books
@@ -42,7 +42,7 @@ class CheckoutService:
 
 
 class ReturnService:
-    """Возврат книги: затрагивает Book и Loan — вынесено в сервис."""
+    """Возврат книги: затрагивает Book и Loan."""
 
     def __init__(self, books: BookRepository, loans: LoanRepository) -> None:
         self._books = books
