@@ -1,0 +1,76 @@
+x-provider: &provider
+  build: ./provider
+  healthcheck:
+    test: ["CMD", "python", "-c",
+           "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+    interval: 2s
+    retries: 30
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: flights
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d flights"]
+      interval: 2s
+      retries: 30
+
+  provider1:
+    <<: *provider
+    environment:
+      PROVIDER_NAME: provider1
+      DELAY_MS: "300"
+      ERROR_PERCENT: "5"
+      SLOW_PERCENT: "0"
+      FLIGHTS_PER_DAY: "500"
+
+  provider2:
+    <<: *provider
+    environment:
+      PROVIDER_NAME: provider2
+      DELAY_MS: "500"
+      ERROR_PERCENT: "5"
+      SLOW_PERCENT: "0"
+      FLIGHTS_PER_DAY: "500"
+
+  provider3:
+    <<: *provider
+    environment:
+      PROVIDER_NAME: provider3
+      DELAY_MS: "800"
+      ERROR_PERCENT: "5"
+      SLOW_PERCENT: "10"
+      FLIGHTS_PER_DAY: "500"
+
+  search:
+    build: ./search
+    ports: ["8000:8000"]
+    environment:
+      APP_MODULE: ${APP_MODULE:-app_sync:app}
+      DB_DSN: postgres:postgres@db:5432/flights
+      PROVIDERS: provider1,provider2,provider3
+    cap_add:
+      - SYS_PTRACE
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 2s
+      retries: 30
+    depends_on:
+      db:
+        condition: service_healthy
+      provider1:
+        condition: service_healthy
+      provider2:
+        condition: service_healthy
+      provider3:
+        condition: service_healthy
+
+volumes:
+  pgdata:
