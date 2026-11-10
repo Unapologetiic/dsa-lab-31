@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Бонусная программа — проверка работы</title>
+<style>
+  :root { color-scheme: light dark; --bg:#f6f7f9; --card:#fff; --fg:#1b1f24; --muted:#667085; --line:#d0d5dd; --accent:#2457d6; --ok:#067647; --bad:#b42318; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14171c; --card:#1c2128; --fg:#e6e8eb; --muted:#9aa4b2; --line:#33404f; --accent:#6c93ff; --ok:#4cc38a; --bad:#ff7b72; } }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:16px; background:var(--bg); color:var(--fg); font:14px/1.45 system-ui, sans-serif; }
+  h1 { font-size:18px; margin:0 0 4px; } .sub { color:var(--muted); margin:0 0 14px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:12px; max-width:1200px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; }
+  h2 { font-size:14px; margin:0 0 8px; }
+  label { display:block; margin:6px 0 2px; color:var(--muted); font-size:12px; }
+  input, select, button { width:100%; padding:6px 8px; font:inherit; color:inherit; background:transparent; border:1px solid var(--line); border-radius:6px; }
+  button { background:var(--accent); color:#fff; border-color:var(--accent); cursor:pointer; margin-top:8px; }
+  button.ghost { background:transparent; color:var(--accent); }
+  .row { display:flex; gap:8px; } .row > * { flex:1; }
+  pre { margin:8px 0 0; padding:8px; background:var(--bg); border-radius:6px; overflow:auto; max-height:260px; font:12px/1.4 ui-monospace, monospace; white-space:pre-wrap; word-break:break-word; }
+  .ok { color:var(--ok); } .bad { color:var(--bad); }
+  table { width:100%; border-collapse:collapse; margin-top:8px; font-size:12px; } td, th { padding:3px 6px; border-bottom:1px solid var(--line); text-align:left; }
+</style>
+</head>
+<body>
+<h1>Бонусная программа — проверка работы</h1>
+<p class="sub">Минимальный интерфейс: отправить операцию кассы, посмотреть результат, счёт, уведомления и статистику. <span id="health"></span></p>
+
+<div class="grid">
+  <section>
+    <h2>1. Операция кассы → POST /operations</h2>
+    <div class="row">
+      <div><label>Вид</label>
+        <select id="type"><option value="purchase">purchase — покупка</option><option value="return">return — возврат</option><option value="redeem">redeem — оплата баллами</option></select></div>
+      <div><label>Покупатель</label><input id="customer" value="C1042"></div>
+    </div>
+    <div class="row">
+      <div><label>Магазин</label><input id="store" value="S12"></div>
+      <div><label>Номер чека</label><input id="check" value="S12-000154"></div>
+    </div>
+    <div class="row">
+      <div><label>Сумма чека (amount)</label><input id="amount" value="2490.00"></div>
+      <div><label>Баллы (points)</label><input id="points" placeholder="только для redeem"></div>
+    </div>
+    <label>Номер операции</label>
+    <div class="row"><input id="opid"><button class="ghost" id="newid" style="margin:0;flex:0 0 110px">новый</button></div>
+    <button id="send">Отправить</button>
+    <pre id="send-out">—</pre>
+  </section>
+
+  <section>
+    <h2>2. Результат → GET /operations/{id}</h2>
+    <label>Номер операции</label><input id="q-op">
+    <button id="get-op">Показать</button>
+    <pre id="op-out">—</pre>
+  </section>
+
+  <section>
+    <h2>3. Счёт → GET /accounts/{customer_id}</h2>
+    <label>Покупатель</label><input id="q-acc" value="C1042">
+    <button id="get-acc">Показать</button>
+    <div id="acc-sum"></div>
+    <div id="acc-table"></div>
+  </section>
+
+  <section>
+    <h2>4. Уведомления → notifier :8001</h2>
+    <label>Покупатель</label><input id="q-notif" value="C1042">
+    <div class="row"><button id="get-notif">Уведомления</button><button class="ghost" id="get-nstats">/stats</button></div>
+    <pre id="notif-out">—</pre>
+  </section>
+
+  <section>
+    <h2>5. Статистика магазинов → analytics :8002</h2>
+    <div class="row"><button id="get-stores">/stores</button><button class="ghost" id="get-astats">/stats</button></div>
+    <pre id="stores-out">—</pre>
+  </section>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const host = location.hostname || "localhost";
+const NOTIFIER = `http://${host}:8001`, ANALYTICS = `http://${host}:8002`;
+const show = (el, v, cls) => { el.className = cls || ""; el.textContent = typeof v === "string" ? v : JSON.stringify(v, null, 2); };
+
+async function call(url, opts) {
+  try {
+    const r = await fetch(url, opts);
+    const text = await r.text();
+    let body; try { body = JSON.parse(text); } catch { body = text; }
+    return { status: r.status, ok: r.ok, body };
+  } catch (e) { return { status: 0, ok: false, body: "Нет ответа: " + e.message }; }
+}
+const newId = () => `${$("store").value || "S"}-K-${Date.now()}`;
+$("opid").value = newId();
+$("newid").onclick = () => { $("opid").value = newId(); };
+
+$("send").onclick = async () => {
+  const t = $("type").value;
+  const body = { operation_id: $("opid").value, type: t, customer_id: $("customer").value, store_id: $("store").value,
+                 check_number: $("check").value, occurred_at: new Date().toISOString() };
+  if (t !== "return") body.amount = $("amount").value;
+  if (t === "redeem") body.points = Number($("points").value);
+  const r = await call("/operations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  show($("send-out"), `HTTP ${r.status}\n` + JSON.stringify(r.body, null, 2), r.status === 202 ? "ok" : "bad");
+  if (r.status === 202) { $("q-op").value = body.operation_id; $("q-acc").value = body.customer_id; $("q-notif").value = body.customer_id; setTimeout(() => $("get-op").click(), 700); }
+};
+$("get-op").onclick = async () => {
+  const r = await call("/operations/" + encodeURIComponent($("q-op").value));
+  show($("op-out"), `HTTP ${r.status}\n` + JSON.stringify(r.body, null, 2), r.ok ? "ok" : "bad");
+};
+$("get-acc").onclick = async () => {
+  const r = await call("/accounts/" + encodeURIComponent($("q-acc").value));
+  if (!r.ok) { $("acc-sum").innerHTML = `<pre class="bad">HTTP ${r.status}\n${JSON.stringify(r.body)}</pre>`; $("acc-table").innerHTML = ""; return; }
+  $("acc-sum").innerHTML = `<p><b>${r.body.customer_id}</b>: баланс <b>${r.body.balance}</b></p>`;
+  const rows = r.body.operations.map(o => `<tr><td>${o.operation_id}</td><td>${o.type}</td><td class="${o.status === "applied" ? "ok" : "bad"}">${o.status}${o.reject_reason ? " (" + o.reject_reason + ")" : ""}</td><td>${o.points_delta}</td><td>${o.balance_after}</td></tr>`).join("");
+  $("acc-table").innerHTML = `<table><tr><th>операция</th><th>вид</th><th>статус</th><th>Δ</th><th>баланс</th></tr>${rows}</table>`;
+};
+$("get-notif").onclick = async () => { const r = await call(`${NOTIFIER}/notifications?customer_id=` + encodeURIComponent($("q-notif").value)); show($("notif-out"), `HTTP ${r.status}\n` + JSON.stringify(r.body, null, 2)); };
+$("get-nstats").onclick = async () => { const r = await call(`${NOTIFIER}/stats`); show($("notif-out"), `HTTP ${r.status}\n` + JSON.stringify(r.body, null, 2)); };
+$("get-stores").onclick = async () => { const r = await call(`${ANALYTICS}/stores`); show($("stores-out"), `HTTP ${r.status}\n` + JSON.stringify(r.body, null, 2)); };
+$("get-astats").onclick = async () => { const r = await call(`${ANALYTICS}/stats`); show($("stores-out"), `HTTP ${r.status}\n` + JSON.stringify(r.body, null, 2)); };
+
+(async () => { const r = await call("/health"); $("health").innerHTML = r.ok ? '<span class="ok">● api: БД и брокер доступны</span>' : '<span class="bad">● /health: ' + r.status + "</span>"; })();
+</script>
+</body>
+</html>

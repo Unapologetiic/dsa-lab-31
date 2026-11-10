@@ -1,0 +1,89 @@
+x-db-url: &db_url postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+x-mq-url: &mq_url amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    ports:
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_port_listener 5672"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 20s
+
+  worker:
+    build: ./worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: *db_url
+      RABBITMQ_URL: *mq_url
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+    # готов, когда созданы таблицы и объявлены обменники/очереди (worker создаёт файл)
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/worker.ready"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  api:
+    build: ./api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: *db_url
+      RABBITMQ_URL: *mq_url
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      worker: { condition: service_healthy }
+
+  notifier:
+    build: ./notifier
+    restart: unless-stopped
+    environment:
+      RABBITMQ_URL: *mq_url
+      MIN_DELAY_MS: ${MIN_DELAY_MS:-200}
+      MAX_DELAY_MS: ${MAX_DELAY_MS:-1500}
+      UNSUBSCRIBED: ${UNSUBSCRIBED:-}
+    ports:
+      - "8001:8001"
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+
+  analytics:
+    build: ./analytics
+    restart: unless-stopped
+    environment:
+      RABBITMQ_URL: *mq_url
+    ports:
+      - "8002:8002"
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+
+volumes:
+  pgdata:
+  rabbitmq_data:
