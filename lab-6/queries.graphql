@@ -1,0 +1,55 @@
+# ===== Задача 4: запрос А (Variables: {"status": "CANCELLED"} / "READY" / пусто) =====
+query A($status: OrderStatus) {
+  orders(status: $status) {
+    id status total customerName
+    restaurant { name }
+    items { quantity price dish { name } }
+  }
+}
+
+# ===== Задача 7.1 =====
+query OrderFull {
+  order(id: "1") {
+    id status total createdAt customerName deliveryAddress cancelReason
+    restaurant { id name address dishes { id name price } }
+    items { quantity price amount dish { id name price } }
+  }
+}
+
+query Accepted {
+  orders(status: ACCEPTED) { id status total customerName }
+}
+
+# ===== Задача 7.2 =====
+# Подставьте идентификаторы блюд ОДНОГО ресторана (restaurants { id dishes { id } })
+mutation Create {
+  createOrder(input: {
+    restaurantId: "1", customerName: "Иван Петров",
+    deliveryAddress: "ул. Ленина, 1",
+    items: [{ dishId: "1", quantity: 2 }, { dishId: "2", quantity: 1 }]
+  }) { id status total items { quantity amount dish { name } } }
+}
+mutation Accept   { acceptOrder(id: "101") { id status } }
+mutation Ready    { markOrderReady(id: "101") { id status } }
+mutation Delivered{ markOrderDelivered(id: "101") { id status } }
+
+# Блюдо другого ресторана -> VALIDATION_ERROR (блюдо 11 принадлежит ресторану 2)
+mutation WrongRestaurant {
+  createOrder(input: {
+    restaurantId: "1", customerName: "Иван", deliveryAddress: "ул. Ленина, 1",
+    items: [{ dishId: "11", quantity: 1 }]
+  }) { id }
+}
+
+# Отмена, затем недопустимое событие -> TRANSITION_NOT_ALLOWED
+mutation Cancel { cancelOrder(id: "102", reason: "Передумал") { id status cancelReason } }
+mutation AcceptCancelled { acceptOrder(id: "102") { id status } }
+query Check { order(id: "102") { id status } }
+
+# Несуществующий заказ -> NOT_FOUND
+mutation NotFound { acceptOrder(id: "99999") { id } }
+
+# ===== Задача 7.3 (вкладка 1) =====
+subscription Watch {
+  orderStatusChanged(orderId: "101") { id status cancelReason }
+}
